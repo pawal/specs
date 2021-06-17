@@ -2,7 +2,8 @@
 
 **Author(s)**:
 - [Juan Benet](github.com/jbenet)
-
+- [David Dias](github.com/daviddias)
+- [Hector Sanjuan](github.com/hsanjuan)
 * * *
 
 **Abstract**
@@ -13,16 +14,16 @@ This spec defines `fs-repo` version `1`, its formats, and semantics.
 
 ## Definition
 
-`fs-repo` is a filesystem implementation of the IPFS [repo](../).
+`fs-repo` is a filesystem implementation of the IPFS [repo](REPO.md).
 
 <center>
-<img src="fs-repo.png?" width="256" />
+<img src="img/fs-repo.png?" width="256" />
 </center>
 
 
 ## Contents
 
-![](../ipfs-repo-contents.png?)
+![](img/ipfs-repo-contents.png?)
 
 ```
 .ipfs/
@@ -32,9 +33,8 @@ This spec defines `fs-repo` version `1`, its formats, and semantics.
 │       └── aa      <--- N tiers
 ├── config          <--- config file (json or toml)
 ├── hooks/          <--- hook scripts
-├── keys/           <--- cryptographic keys
-│   ├── id.pri      <--- identity private key
-│   └── id.pub      <--- identity public key
+├── keystore/       <--- cryptographic keys
+│   ├── key_b32name <--- private key with base32-encoded name
 ├── datastore/      <--- datastore
 ├── logs/           <--- 1 or more files (log rotate)
 │   └── events.log  <--- can be tailed
@@ -47,9 +47,9 @@ This spec defines `fs-repo` version `1`, its formats, and semantics.
 `./api` is a file that exists to denote an API endpoint to listen to.
 - It MAY exist even if the endpoint is no longer live (i.e. it is a _stale_ or left-over `./api` file).
 
-In the presence of an `./api` file, ipfs tools (eg go-ipfs `ipfs daemon`) MUST attempt to delegate to the endpoint, and MAY remove the file if resonably certain the file is stale. (e.g. endpoint is local, but no process is live)
+In the presence of an `./api` file, ipfs tools (eg go-ipfs `ipfs daemon`) MUST attempt to delegate to the endpoint, and MAY remove the file if reasonably certain the file is stale. (e.g. endpoint is local, but no process is live)
 
-The `./api` file is used in conjunction with the `repo.lock`. Clients may opt to use the api service, or wait until the process holding `repo.lock` exits. The file's content is the api endoint as a [multiaddr](https://github.com/jbenet/multiaddr)
+The `./api` file is used in conjunction with the `repo.lock`. Clients may opt to use the api service, or wait until the process holding `repo.lock` exits. The file's content is the api endpoint as a [multiaddr](https://github.com/jbenet/multiaddr)
 
 ```
 > cat .ipfs/api
@@ -107,7 +107,7 @@ configuration variables. It MUST only be changed while holding the
 
 ### hooks/
 
-The `hooks` directory contains exectuable scripts to be called on specific
+The `hooks` directory contains executable scripts to be called on specific
 events to alter ipfs node behavior.
 
 Currently available hooks:
@@ -116,18 +116,28 @@ Currently available hooks:
 none
 ```
 
-### keys/
+### keystore/
 
 
-The `keys` directory holds all the keys the node has access to. The keys
-are named with their hash, and an extension describing what type of key
-they are. The only specially-named key is `id.{pub, sec}`
+The `keystore` directory holds additional private keys that the node has
+access to (the public keys can be derived from them).
 
-```
-<key>.pub is a public key
-<key>.pri is a private key
-<key>.sym is a symmetric secret key
-```
+The keystore repository should have `0700` permissions (readable, writable by
+the owner only).
+
+The key files are named as `key_base32encodedNameNoPadding` where `key_` is a
+fixed prefix followed by a base32 encoded identifier, **without padding and
+downcased**. The identifier usually corresponds to a human-friendly name given
+by the user.
+
+The key files should have '0400' permissions (read-only, by the owner only).
+
+The `self` key identifier is reserved for the peer's main key, and therefore key named
+`key_onswyzq` is allowed in this folder.
+
+The key files themselves contain a serialized representation of the keys as
+defined in the
+[libp2p specification](https://github.com/libp2p/specs/blob/master/peer-ids/peer-ids.md#keys).
 
 ### datastore/
 
